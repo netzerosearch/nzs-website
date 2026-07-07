@@ -45,17 +45,29 @@ module.exports = async function handler(req, res) {
   }
   body = body || {};
 
-  const type = body.type === "candidate" ? "candidate" : "client";
+  const type =
+    body.type === "candidate" ? "candidate" : body.type === "report" ? "report" : "client";
   const name = (body.name || "").trim();
   const email = (body.email || "").trim();
 
-  if (!name || !email) {
+  // Report downloads only capture an email; other lead types require a name too.
+  if (type === "report") {
+    if (!email) {
+      return res.status(400).json({ error: "Email is required." });
+    }
+  } else if (!name || !email) {
     return res.status(400).json({ error: "Name and email are required." });
   }
 
   let subject;
   let rows;
-  if (type === "candidate") {
+  if (type === "report") {
+    subject = `New report download — ${body.report || "Investment Outlook"}`;
+    rows =
+      row("Work email", email) +
+      row("Report", body.report || "2025–2027 Investment Outlook in the Global Energy Transition") +
+      row("Name", name);
+  } else if (type === "candidate") {
     subject = `New candidate enquiry — ${name}`;
     rows =
       row("Name", name) +
@@ -81,14 +93,16 @@ module.exports = async function handler(req, res) {
       <div style="background:#141414;padding:18px 24px">
         <span style="color:#f5f3ee;font-family:Georgia,serif;font-size:18px">Net Zero Search</span>
         <span style="color:#c9a24b;font-family:Arial,sans-serif;font-size:12px;float:right;line-height:26px">${
-          type === "candidate" ? "Candidate lead" : "Client lead"
+          type === "candidate" ? "Candidate lead" : type === "report" ? "Report download" : "Client lead"
         }</span>
       </div>
       <div style="padding:24px">
         <table style="border-collapse:collapse;width:100%">${rows}</table>
       </div>
     </div>
-    <p style="max-width:560px;margin:14px auto 0;color:#a59f90;font-family:Arial,sans-serif;font-size:12px">Submitted from the Book a Call page.</p>
+    <p style="max-width:560px;margin:14px auto 0;color:#a59f90;font-family:Arial,sans-serif;font-size:12px">${
+      type === "report" ? "Submitted from the Insights report gate." : "Submitted from the Book a Call page."
+    }</p>
   </div>`;
 
   const payload = {
